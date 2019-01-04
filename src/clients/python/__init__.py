@@ -1,4 +1,4 @@
-# Copyright (c) 2018, NVIDIA CORPORATION. All rights reserved.
+# Copyright (c) 2018-2019, NVIDIA CORPORATION. All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
@@ -582,6 +582,8 @@ class InferContext:
             return np.float32
         elif ctype.value == model_config_pb2.TYPE_FP64:
             return np.float64
+        elif ctype.value == model_config_pb2.TYPE_STRING:
+            return np.dtype(object)
         _raise_error("unknown result datatype " + ctype.value)
 
     def _prepare_request(self, inputs, outputs, batch_size, contiguous_input_values):
@@ -619,7 +621,7 @@ class InferContext:
         finally:
             _crequest_infer_ctx_options_del(options)
 
-        # Set the input values in the provided 'contiguous_input_values'
+        # Set the input tensors
         for (input_name, input_values) in iteritems(inputs):
             input = c_void_p()
             try:
@@ -627,6 +629,17 @@ class InferContext:
                     c_void_p(_crequest_infer_ctx_input_new(byref(input), self._ctx, input_name)))
 
                 for input_value in input_values:
+                    # If the input is a tensor of string objects, then
+                    # must flatten those into a 1-dimensional array
+                    # containing the null-terminated strings
+                    # concatenated together in "C" order
+                    if input_value.dtype == np.object:
+                        flattened = str()
+                        for s in np.nditer(input_value, flags=["refs_ok"], order='C'):
+                            flattened += s
+                            flattened += '\0'
+                        input_value = np.asarray(flattened)
+
                     if not input_value.flags['C_CONTIGUOUS']:
                         input_value = np.ascontiguousarray(input_value)
                     contiguous_input_values.append(input_value)

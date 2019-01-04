@@ -51,7 +51,7 @@ def validate_for_c2_model(input_dtype, output0_dtype, output1_dtype):
 def validate_for_trt_model(input_dtype, output0_dtype, output1_dtype):
     """Return True if input and output dtypes are supported by a TRT model."""
 
-    # TRT supports limited datatypes as of TRT 4.0. Input can be FP16 or
+    # TRT supports limited datatypes as of TRT 5.0. Input can be FP16 or
     # FP32, output must be FP32.
     if (input_dtype != np.float16) and (input_dtype != np.float32):
         return False
